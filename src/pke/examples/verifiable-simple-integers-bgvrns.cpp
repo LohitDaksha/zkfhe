@@ -115,18 +115,20 @@ int main() {
 
     //////
 
-    LibsnarkProofSystem ps(nullptr, cryptoContext);
+    LibsnarkProofSystem ps(cryptoContext);
+    ps.SetMode(PROOFSYSTEM_MODE_CONSTRAINT_GENERATION);
 
-    ps.ConstrainPublicInput(ciphertext1);
-    ps.ConstrainPublicInput(ciphertext2);
+    ps.PublicInput(ciphertext1);
+    ps.PublicInput(ciphertext2);
     // TODO important: only add public input before adding any other constraints!
-    auto vars_out = *ps.ConstrainPublicOutput(ciphertextMul);
 
-    ps.EvalAdd(ciphertext1, ciphertext2, ciphertextAdd12);
-    ps.ConstrainSubstraction(ciphertext1, ciphertext2, ciphertextSub12);
-    ps.EvalMultNoRelin(ciphertextAdd12, ciphertextSub12, ciphertextMul);
-    ps.ConstrainRelin(ciphertextMul, ciphertextRelin);
-    ps.FinalizeOutputConstraints(ciphertextMul, vars_out);
+    auto ps_ciphertextAdd12 = ps.EvalAdd(ciphertext1, ciphertext2);
+    auto ps_ciphertextSub12 = ps.EvalSub(ciphertext1, ciphertext2);
+    auto ps_ciphertextMul = ps.EvalMultNoRelin(ps_ciphertextAdd12, ps_ciphertextSub12);
+    auto ps_ciphertextRelin = ps.Relinearize(ps_ciphertextMul);
+    
+    auto vars_out = *ps.ConstrainPublicOutput(ps_ciphertextRelin);
+    ps.FinalizeOutputConstraints(ps_ciphertextRelin, vars_out);
 
     ////////////////////////
 

@@ -106,7 +106,7 @@ if ( BUILD_EXAMPLES)
 		set_property(TARGET ${exe} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/examples/pke)
 		set( PKEAPPS ${PKEAPPS} ${exe} )
 		target_link_libraries ( ${exe} ${PKELIBS} )
-		target_link_libraries( ${exe} PRIVATE snark )
+		target_link_libraries( ${exe} PRIVATE snark ff gmp )
 	endforeach()
 
 	add_custom_target( allpkeexamples )
