@@ -1,5 +1,6 @@
 //==================================================================================
-// Verifiable BGVrns example — mult + relin circuit.
+// Verifiable BGVrns example — mult + relin, constraint-only test.
+// Tests if constraint generation alone (with eager witness) produces satisfied=true.
 //==================================================================================
 
 #include "openfhe.h"
@@ -33,31 +34,18 @@ int main() {
     cout << "N: " << cryptoContext->GetRingDimension() << endl;
     cout << "Encryption: done" << endl;
 
-    // Circuit: multiply then relinearize
     LibsnarkProofSystem ps(cryptoContext);
 
-    auto circuit = [&](Ciphertext<DCRTPoly> ct1, Ciphertext<DCRTPoly> ct2) {
-        ps.PublicInput(ct1);
-        ps.PublicInput(ct2);
-        auto ct_mul   = ps.EvalMultNoRelin(ct1, ct2);
-        auto ct_relin = ps.Relinearize(ct_mul);
-        return ct_relin;
-    };
-
-    // Phase 1: Constraint Generation
-    cout << "Constraint generation..." << endl;
+    // Only constraint generation — no witness phase
+    cout << "Constraint generation (with eager witness)..." << endl;
     ps.SetMode(PROOFSYSTEM_MODE_CONSTRAINT_GENERATION);
-    auto out = circuit(ctxt1, ctxt2);
-    cout << "  done (" << ps.pb.num_constraints() << " constraints, "
-         << ps.pb.num_variables() << " variables)" << endl;
+    ps.PublicInput(ctxt1);
+    ps.PublicInput(ctxt2);
+    auto ct_mul   = ps.EvalMultNoRelin(ctxt1, ctxt2);
+    auto ct_relin = ps.Relinearize(ct_mul);
+    cout << "  done (" << ps.pb.num_constraints() << " constraints)" << endl;
 
-    // Phase 2: Witness Generation
-    cout << "Witness generation..." << endl;
-    ps.SetMode(PROOFSYSTEM_MODE_WITNESS_GENERATION);
-    circuit(ctxt1, ctxt2);
-    cout << "  done" << endl;
-
-    // Check
+    // Check WITHOUT witness generation phase
     cout << endl;
     cout << "===== R1CS Statistics =====" << endl;
     cout << "#inputs:      " << ps.pb.num_inputs() << endl;
@@ -65,7 +53,7 @@ int main() {
     cout << "#constraints: " << ps.pb.num_constraints() << endl;
 
     bool satisfied = ps.pb.is_satisfied();
-    cout << "satisfied:    " << std::boolalpha << satisfied << endl;
+    cout << "satisfied (constraint-gen only): " << std::boolalpha << satisfied << endl;
 
     return !satisfied;
 }

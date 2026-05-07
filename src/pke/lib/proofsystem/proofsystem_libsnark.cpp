@@ -2038,8 +2038,8 @@ void LibsnarkProofSystem::ConstrainFastKeySwitchCore(const EvalKey<DCRTPoly>& ev
                 g1.generate_r1cs_witness();
                 LazyAddModGadget<FieldT> g1_add(pb, g1.out, g1.out_max_value, out_lc[1][j][k], ct_max_value[1][j][k],
                                                 modulus);
-                g0_add.generate_r1cs_constraints();
-                g0_add.generate_r1cs_witness();
+                g1_add.generate_r1cs_constraints();
+                g1_add.generate_r1cs_witness();
                 out_lc[1][j][k]       = g1_add.out;
                 ct_max_value[1][j][k] = g1_add.out_max_value;
             }
@@ -2174,8 +2174,8 @@ void LibsnarkProofSystem::ConstrainFastKeySwitchCore(
                 g1.generate_r1cs_witness();
                 LazyAddModGadget<FieldT> g1_add(pb, g1.out, g1.out_max_value, out_lc[1][j][k], ct_max_value[1][j][k],
                                                 modulus);
-                g0_add.generate_r1cs_constraints();
-                g0_add.generate_r1cs_witness();
+                g1_add.generate_r1cs_constraints();
+                g1_add.generate_r1cs_witness();
                 out_lc[1][j][k]       = g1_add.out;
                 ct_max_value[1][j][k] = g1_add.out_max_value;
 #ifdef PROOFSYSTEM_CHECK_STRICT
