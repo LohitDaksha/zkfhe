@@ -1,6 +1,5 @@
 //==================================================================================
-// Verifiable BGVrns example — mult + relin, constraint-only test.
-// Tests if constraint generation alone (with eager witness) produces satisfied=true.
+// Verifiable BGVrns example — mult + relin, two-phase constraint+witness.
 //==================================================================================
 
 #include "openfhe.h"
@@ -36,16 +35,24 @@ int main() {
 
     LibsnarkProofSystem ps(cryptoContext);
 
-    // Only constraint generation — no witness phase
-    cout << "Constraint generation (with eager witness)..." << endl;
+    auto circuit = [&](Ciphertext<DCRTPoly> c1, Ciphertext<DCRTPoly> c2) {
+        ps.PublicInput(c1);
+        ps.PublicInput(c2);
+        auto ct_mul   = ps.EvalMultNoRelin(c1, c2);
+        auto ct_relin = ps.Relinearize(ct_mul);
+        return ct_relin;
+    };
+
+    cout << "Constraint generation..." << endl;
     ps.SetMode(PROOFSYSTEM_MODE_CONSTRAINT_GENERATION);
-    ps.PublicInput(ctxt1);
-    ps.PublicInput(ctxt2);
-    auto ct_mul   = ps.EvalMultNoRelin(ctxt1, ctxt2);
-    auto ct_relin = ps.Relinearize(ct_mul);
+    auto ct_out = circuit(ctxt1, ctxt2);
     cout << "  done (" << ps.pb.num_constraints() << " constraints)" << endl;
 
-    // Check WITHOUT witness generation phase
+    cout << "Witness generation..." << endl;
+    ps.SetMode(PROOFSYSTEM_MODE_WITNESS_GENERATION);
+    circuit(ctxt1, ctxt2);
+    cout << "  done" << endl;
+
     cout << endl;
     cout << "===== R1CS Statistics =====" << endl;
     cout << "#inputs:      " << ps.pb.num_inputs() << endl;
@@ -53,7 +60,7 @@ int main() {
     cout << "#constraints: " << ps.pb.num_constraints() << endl;
 
     bool satisfied = ps.pb.is_satisfied();
-    cout << "satisfied (constraint-gen only): " << std::boolalpha << satisfied << endl;
+    cout << "R1CS satisfied: " << std::boolalpha << satisfied << endl;
 
     return !satisfied;
 }

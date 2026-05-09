@@ -920,11 +920,21 @@ TEST(libsnark_openfhe_gadgets, key_switch_precompute_core) {
     LibsnarkProofSystem ps(cryptoContext);
     LibsnarkWitnessMetadata witnessMetadata;
 
+    ps.SetMode(PROOFSYSTEM_MODE_CONSTRAINT_GENERATION);
     ps.PublicInput(ctxt);
     auto in_metadata = LibsnarkProofSystem::GetMetadata<LibsnarkConstraintMetadata>(ctxt);
 
     const auto in_lc        = in_metadata[0];
     const auto in_max_value = in_metadata.max_value[0];
+
+    // Set witness values for the input variables (evaluation-domain coefficients of poly 0)
+    for (size_t j = 0; j < in_lc.size(); j++) {
+        const auto& v = in.GetElementAtIndex(j).GetValues();
+        for (size_t k = 0; k < in_lc[j].size(); k++) {
+            ps.pb.lc_val(in_lc[j][k]) = FieldT(v[k].ConvertToInt<long>());
+        }
+    }
+
     vector<vector<vector<pb_linear_combination<FieldT>>>> out_lc;
     vector<vector<FieldT>> out_max_value;
 
@@ -1119,26 +1129,23 @@ TEST(libsnark_openfhe_gadgets, relin) {
     cryptoContext->ModReduceInPlace(ctxt1);
     cryptoContext->ModReduceInPlace(ctxt2);
     auto in = cryptoContext->EvalMultNoRelin(ctxt1, ctxt2);
-    auto old_in(in);
 
     LibsnarkProofSystem ps(cryptoContext);
-    ps.PublicInput(in);
-    const auto in_metadata = LibsnarkProofSystem::GetMetadata<LibsnarkConstraintMetadata>(in);
 
     cout << "in.GetNumOfElements() = " << in->GetElements()[0].GetNumOfElements() << endl;
-    auto eval = [&](Ciphertext<DCRTPoly> ctxt1) {
-        ps.PublicInput(ctxt1);
-        return ps.Relinearize(ctxt1);
+    auto eval = [&](Ciphertext<DCRTPoly> ctxt) {
+        ps.PublicInput(ctxt);
+        return ps.Relinearize(ctxt);
     };
 
     ps.SetMode(PROOFSYSTEM_MODE_CONSTRAINT_GENERATION);
-    auto out          = eval(ctxt1);
+    auto out          = eval(in);
     auto out_metadata = LibsnarkProofSystem::GetMetadata<LibsnarkConstraintMetadata>(out);
 
     print_stats(ps.pb);
 
     ps.SetMode(PROOFSYSTEM_MODE_WITNESS_GENERATION);
-    eval(ctxt1);
+    eval(in);
 
     EXPECT_TRUE(ps.pb.is_satisfied());
     expect_lessequal_maxvalue(ps.pb, out_metadata);

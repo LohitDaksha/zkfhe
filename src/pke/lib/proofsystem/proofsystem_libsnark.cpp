@@ -125,17 +125,24 @@ void INTTParameters(const DCRTPoly::PolyType::Vector::Integer rootOfUnity, const
 
     vector<std::shared_ptr<gadget_gen<FieldT>>> all_gadgets;
 
+    // Save in1 data before the loop since out may alias in1 (same object, same index).
+    // out.max_value[index_out] is reset below, and out[index_out][j] is overwritten inside
+    // the loop — both would corrupt in1 if they share the same storage.
+    const auto saved_in1_lc      = in1[index_1];
+    const auto saved_in1_maxval  = in1.max_value[index_1];
+
     vector<FieldT> out_max_value(num_limbs);
     vector<bool> field_overflow(num_limbs);
     out.max_value[index_out] = vector<FieldT>(out[index_out].size());
     for (size_t j = 0; j < num_limbs; ++j) {
-        size_t out_bit_size = std::max(in1.get_bit_size(index_1, j), in2.get_bit_size(index_2, j)) + 1ul;
-        out_max_value[j]    = in1.max_value[index_1][j] + in2.max_value[index_2][j];
+        size_t out_bit_size = std::max(saved_in1_maxval[j].as_bigint().num_bits(),
+                                       in2.get_bit_size(index_2, j)) + 1ul;
+        out_max_value[j]    = saved_in1_maxval[j] + in2.max_value[index_2][j];
         field_overflow[j]   = out_bit_size >= FieldT::num_bits;
 
         if (field_overflow[j]) {
             // Eager witness generation, add modulus constraints
-            auto g = BatchGadget<FieldT, AddModGadget<FieldT>>(pb, in1[index_1][j], in1.max_value[index_1][j],
+            auto g = BatchGadget<FieldT, AddModGadget<FieldT>>(pb, saved_in1_lc[j], saved_in1_maxval[j],
                                                                in2[index_2][j], in2.max_value[index_2][j], modulus[j]);
             g.generate_r1cs_constraints();
             g.generate_r1cs_witness();
@@ -146,9 +153,9 @@ void INTTParameters(const DCRTPoly::PolyType::Vector::Integer rootOfUnity, const
         }
         else {
             // Lazy branch, do not add modulus constraints, but track size of values for later
-            out[index_out][j] = vector<pb_linear_combination<FieldT>>(in1[index_1][j].size());
+            out[index_out][j] = vector<pb_linear_combination<FieldT>>(saved_in1_lc[j].size());
             for (size_t k = 0; k < out[index_out][j].size(); ++k) {
-                out[index_out][j][k].assign(pb, in1[index_1][j][k] + in2[index_2][j][k]);
+                out[index_out][j][k].assign(pb, saved_in1_lc[j][k] + in2[index_2][j][k]);
             }
             out.max_value[index_out][j] = out_max_value[j];
         }
@@ -365,7 +372,7 @@ void LibsnarkProofSystem::PublicInputWitness(ConstCiphertext<DCRTPoly> ciphertex
 
     for (size_t i = 0; i < num_polys; i++) {
         const auto c_i = ciphertext->GetElements()[i];
-        for (size_t j = 0; j < num_polys; j++) {
+        for (size_t j = 0; j < num_limbs; j++) {
             const auto c_ij  = c_i.GetElementAtIndex(j);
             const auto& v_ij = c_ij.GetValues();
             for (size_t k = 0; k < num_coeffs; k++) {

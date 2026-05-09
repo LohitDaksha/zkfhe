@@ -151,7 +151,9 @@ public:
             case PROOFSYSTEM_MODE_CONSTRAINT_GENERATION:
                 m = PublicInputConstraint(ciphertext);
                 SetMetadata<ConstraintMetadata>(ciphertext, m);
+                SetMetadata(ciphertext, m.witness_metadata);
                 wire_id_to_metadata[GetWireId(ciphertext)] = m.witness_metadata;
+                PublicInputWitness(ciphertext);
                 break;
             case PROOFSYSTEM_MODE_WITNESS_GENERATION:
                 SetMetadata(ciphertext, wire_id_to_metadata.at(GetWireId(ciphertext)));
